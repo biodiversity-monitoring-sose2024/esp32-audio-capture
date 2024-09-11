@@ -2,3 +2,4 @@ build/
 .direnv/
 sdkconfig*
 managed_components
+*.lock
