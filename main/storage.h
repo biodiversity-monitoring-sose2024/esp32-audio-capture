@@ -11,7 +11,7 @@ class Storage {
         {}
         esp_err_t init();
         bool is_mounted = false;
-        int open(std::string filename);
+        std::ifstream open(std::string& filename);
     private:
         const std::string TAG = "storage";
         periph_sdcard_cfg_t config;

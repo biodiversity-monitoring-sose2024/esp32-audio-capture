@@ -5,21 +5,20 @@
 #include <sys/socket.h>
 #include <thread>
 #include <queue>
+#include "storage.h"
 
 class Client {
     public:
         Client(std::string host, int port);
         esp_err_t init(void);
-        int enqueue(int8_t* data, size_t len);
+        void start_file_transfer(Storage storage, std::string filename);
         int8_t* receive();
-        bool is_connected = false;
 
     private:
         const std::string TAG = "tcp_client";
-        std::thread run_thread;
-        std::counting_semaphore<1> semaphore = std::counting_semaphore<1>(1);
-        std::queue<int8_t> queue; 
-        void run();
+        // File transfer
+        std::thread file_thread;
+        void run_file_transfer(Storage storage, std::string filename);
     protected:
         int fd = -1;
         struct sockaddr_in addr;

@@ -2,11 +2,11 @@
 #include <esp_err.h>
 #include "nvs_flash.h"
 #include "wifi.h"
-#include "esp_log.h"
 #include "tcp_client.h"
 #include <esp_pthread.h>
 #include "storage.h"
 #include <periph_sdcard.h>
+#include <esp_log.h>
 
 static const char *TAG = "main";
 
@@ -50,19 +50,7 @@ extern "C" void app_main()
   ESP_LOGI(TAG, "Init tcp client");
   Client client(CONFIG_ESP_TCP_SERVER_IP, CONFIG_ESP_TCP_SERVER_PORT);
   ESP_ERROR_CHECK(client.init());
+  std::string filename = "StarWars60.wav";
 
-  int8_t buffer[] = "Hello World!";
-
-  int8_t size[4];
-  size[0] = 0;
-  size[1] = 0;
-  size[2] = 0;
-  size[3] = sizeof(buffer);
-
-  while (true) {
-    if (client.is_connected) {
-      if (!client.enqueue(size, sizeof(size))) continue;
-      client.enqueue(buffer, sizeof(buffer));
-    }
-  }
+  client.start_file_transfer(storage, filename);
 }

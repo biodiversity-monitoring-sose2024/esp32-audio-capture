@@ -1,5 +1,6 @@
 #include "storage.h"
 #include <esp_log.h>
+#include <fstream>
 
 esp_err_t Storage::init()
 {
@@ -26,4 +27,11 @@ esp_err_t Storage::init()
     ESP_LOGE(this->TAG.c_str(), "Failed to mount Sd card!");
 
     return ESP_FAIL;
+}
+
+std::ifstream Storage::open(std::string &filename)
+{
+    std::ifstream in(filename, std::ifstream::binary);
+
+    return in;
 }

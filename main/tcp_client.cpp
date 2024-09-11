@@ -6,6 +6,8 @@
 #include <freertos/task.h>
 #include <chrono>
 #include <rtc_wdt.h>
+#include <fstream>
+#include <endian.h>
 
 Client::Client(std::string host, int port)
 {
@@ -17,54 +19,21 @@ Client::Client(std::string host, int port)
 }
 
 esp_err_t Client::init(void) {
-   this->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-
+    this->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (this->fd < 0) {
-        return esp_err_t(-1);
+        return ESP_FAIL;
     }
 
-    char str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &this->addr.sin_addr, str, sizeof(str));
-
-    ESP_LOGI(this->TAG.c_str(), "Configured to connect to %s:%d on fd %i", str, this->addr.sin_port, this->fd);
-
-    int err = connect(this->fd, (const sockaddr *) &this->addr, sizeof(this->addr));
-    if (err != 0) {
-        err = errno;
-        ESP_LOGE(this->TAG.c_str(), "Unable to create socket: errno %d: %s", err, strerror(err));
-        return esp_err_t(-1);
-    }
-    
-    ESP_LOGI(this->TAG.c_str(), "Connected");
-
-    auto cfg = esp_pthread_get_default_config();
-    cfg.thread_name = "tcp_client";
-    cfg.pin_to_core = 1;
-    cfg.stack_size = 3 * 1024;
-    cfg.prio = 5;
-    cfg.inherit_cfg = true;
-
-    esp_pthread_set_cfg(&cfg);
-    this->run_thread = std::thread(&Client::run, this);
-
-    return esp_err_t(0);
+    return ESP_OK;
 }
 
-
-
-int Client::enqueue(int8_t* data, size_t len)
+void Client::start_file_transfer(Storage storage, std::string filename)
 {
-    this->semaphore.acquire();
-    if (this->queue.size() > 4) {
-        this->semaphore.release();
-        return 0;
-    }
-
-    for (size_t i = 0; i < len; i++)
-        this->queue.emplace(data[i]);
-    this->semaphore.release();
-
-    return 1;
+    auto cfg = esp_pthread_get_default_config();
+    cfg.thread_name = "file_transfer";
+    cfg.inherit_cfg = true;
+    esp_pthread_set_cfg(&cfg);
+    this->file_thread = std::thread(&Client::run_file_transfer, this, storage, filename);
 }
 
 int8_t *Client::receive()
@@ -72,35 +41,34 @@ int8_t *Client::receive()
     return nullptr;
 }
 
-void Client::run()
+void Client::run_file_transfer(Storage storage, std::string filename)
 {
-    rtc_wdt_protect_off();
-    rtc_wdt_enable();         // Turn it on manually
-    rtc_wdt_set_time(RTC_WDT_STAGE0, 20000); 
-
-    using namespace std::chrono_literals;
-    this->is_connected = true;
-    while (true) {
-        rtc_wdt_feed();
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
-        this->semaphore.acquire();
-        int8_t buffer[1024];
-        int read = 0;
-        for (int i = 0; i < sizeof(buffer) && !this->queue.empty(); i++) {
-            buffer[i] = this->queue.front();
-            this->queue.pop();
-            read++;
-        }
-        this->semaphore.release();
-
-        if (read == 0)  {
-            continue;
-        }
-        ESP_LOGI(this->TAG.c_str(), "Sending %d bytes", read);
-
-        int err = send(this->fd, buffer, read, 0);
-        if (err < 0) {
-            ESP_LOGE(this->TAG.c_str(), "Error during sending: errno %d", errno);
-        }
+    int err = connect(this->fd, (const sockaddr *) &this->addr, sizeof(this->addr));
+    if (err != 0) {
+        err = errno;
+        ESP_LOGE(this->TAG.c_str(), "Unable to create socket: errno %d: %s", err, strerror(err));
+        //*result = ESP_FAIL;
+        return;
     }
+    ESP_LOGI(this->TAG.c_str(), "Connected");
+
+    std::ifstream stream = storage.open(filename);
+    // Send file size
+    int32_t file_size = htonl(stream.tellg()); 
+    char size[4];
+    size[0] = file_size >> 0    & 0xff;
+    size[1] = file_size >> 8    & 0xff;
+    size[2] = file_size >> 16   & 0xff;
+    size[3] = file_size >> 24   & 0xff;
+    send(fd, &size, sizeof(size), 0);
+
+    std::vector<char> buffer(1024, 0);
+    while (!stream.eof()) {
+        stream.read(buffer.data(), buffer.size());
+        std::streamsize s = stream.gcount();
+
+        send(this->fd, buffer.data(), s, 0);
+    }
+    //*result = ESP_OK;
+    return;
 }
