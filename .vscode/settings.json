@@ -71,5 +71,6 @@
         "variant": "cpp",
         "codecvt": "cpp",
         "fstream": "cpp"
-    }
+    },
+    "C_Cpp.default.compilerPath": "/nix/store/pcvqgvkhb6a1kadqqbn6g9maxc54qcar-xtensa-esp-elf-esp-idf-v5.3/bin/xtensa-esp32-elf-g++"
 }

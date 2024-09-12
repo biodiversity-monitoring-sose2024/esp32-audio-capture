@@ -11,8 +11,9 @@ class Client {
     public:
         Client(std::string host, int port);
         esp_err_t init(void);
-        void start_file_transfer(std::string filename);
+        std::thread* start_file_transfer(std::string filename);
         int8_t* receive();
+        void join();
 
     private:
         const std::string TAG = "tcp_client";

@@ -27,7 +27,7 @@ esp_err_t Client::init(void) {
     return ESP_OK;
 }
 
-void Client::start_file_transfer(std::string filename)
+std::thread* Client::start_file_transfer(std::string filename)
 {
     ESP_LOGI(this->TAG.c_str(), "Starting thread...");
     ESP_LOGI(this->TAG.c_str(), "In send thread");
@@ -36,22 +36,27 @@ void Client::start_file_transfer(std::string filename)
     if (err != 0) {
         err = errno;
         ESP_LOGE(this->TAG.c_str(), "Unable to create socket: errno %d: %s", err, strerror(err));
-        return;
+        return nullptr;
     }
     ESP_LOGI(this->TAG.c_str(), "Connected");
     auto cfg = esp_pthread_get_default_config();
     cfg.thread_name = "file_transfer";
     cfg.pin_to_core = 0;
-    cfg.stack_size = 3 * 1024;
+    cfg.stack_size = 8 * 1024;
     cfg.prio = 5;
     cfg.inherit_cfg = true;
     esp_pthread_set_cfg(&cfg);
-    this->file_thread = std::thread(&Client::run_file_transfer, this);
+    return new std::thread(&Client::run_file_transfer, this);
 }
 
 int8_t *Client::receive()
 {
     return nullptr;
+}
+
+void Client::join()
+{
+    this->file_thread.join();
 }
 
 void Client::run_file_transfer()

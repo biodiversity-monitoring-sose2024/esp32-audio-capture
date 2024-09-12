@@ -58,5 +58,7 @@ extern "C" void app_main()
   Client client(CONFIG_ESP_TCP_SERVER_IP, CONFIG_ESP_TCP_SERVER_PORT);
   ESP_ERROR_CHECK(client.init());
   std::string filename = "/sdcard/piano2122232323.wav";
-  client.start_file_transfer(filename);
+  auto thread = client.start_file_transfer(filename);
+  (*thread).join();
+  delete thread;
 }

@@ -1,22 +1,21 @@
 {
     "configurations": [
-      {
-        "name": "ESP-IDF",
-        "compilerPath": "${config:idf.espIdfPath}/bin/clang",
-        "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-        "includePath": [
-          "${config:idf.espIdfPath}/components/**",
-          "${config:idf.espIdfPathWin}/components/**",
-          "${workspaceFolder}/**"
-        ],
-        "browse": {
-          "path": [
-            "${config:idf.espIdfPath}/components",
-            "${config:idf.espIdfPathWin}/components",
-            "${workspaceFolder}"
-          ]
+        {
+            "name": "ESP-IDF",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "includePath": [
+                "${config:idf.espIdfPath}/components/**",
+                "${config:idf.espIdfPathWin}/components/**",
+                "${workspaceFolder}/**"
+            ],
+            "browse": {
+                "path": [
+                    "${config:idf.espIdfPath}/components",
+                    "${config:idf.espIdfPathWin}/components",
+                    "${workspaceFolder}"
+                ]
+            }
         }
-      }
     ],
     "version": 4
-  }
+}
