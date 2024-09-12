@@ -27,13 +27,26 @@ esp_err_t Client::init(void) {
     return ESP_OK;
 }
 
-void Client::start_file_transfer(Storage storage, std::string filename)
+void Client::start_file_transfer(std::string filename)
 {
+    ESP_LOGI(this->TAG.c_str(), "Starting thread...");
+    ESP_LOGI(this->TAG.c_str(), "In send thread");
+    int err = connect(this->fd, (const sockaddr *) &this->addr, sizeof(this->addr));
+    ESP_LOGI(this->TAG.c_str(), "After connect");
+    if (err != 0) {
+        err = errno;
+        ESP_LOGE(this->TAG.c_str(), "Unable to create socket: errno %d: %s", err, strerror(err));
+        return;
+    }
+    ESP_LOGI(this->TAG.c_str(), "Connected");
     auto cfg = esp_pthread_get_default_config();
     cfg.thread_name = "file_transfer";
+    cfg.pin_to_core = 0;
+    cfg.stack_size = 3 * 1024;
+    cfg.prio = 5;
     cfg.inherit_cfg = true;
     esp_pthread_set_cfg(&cfg);
-    this->file_thread = std::thread(&Client::run_file_transfer, this, storage, filename);
+    this->file_thread = std::thread(&Client::run_file_transfer, this);
 }
 
 int8_t *Client::receive()
@@ -41,34 +54,34 @@ int8_t *Client::receive()
     return nullptr;
 }
 
-void Client::run_file_transfer(Storage storage, std::string filename)
+void Client::run_file_transfer()
 {
-    int err = connect(this->fd, (const sockaddr *) &this->addr, sizeof(this->addr));
-    if (err != 0) {
-        err = errno;
-        ESP_LOGE(this->TAG.c_str(), "Unable to create socket: errno %d: %s", err, strerror(err));
-        //*result = ESP_FAIL;
+    std::string filename = "/sdcard/piano2122232323.wav";
+
+    std::ifstream stream(filename, std::ios::binary | std::ios::ate);
+    uint32_t raw_size = stream.tellg();
+    if (raw_size == -1) {
+        ESP_LOGE(this->TAG.c_str(), "File %s could not be opened for reading!", filename.c_str());
         return;
     }
-    ESP_LOGI(this->TAG.c_str(), "Connected");
-
-    std::ifstream stream = storage.open(filename);
+    ESP_LOGI(this->TAG.c_str(), "File %s has size %ld", filename.c_str(), raw_size);
+    
     // Send file size
-    int32_t file_size = htonl(stream.tellg()); 
+    int32_t file_size = htonl(raw_size); 
     char size[4];
     size[0] = file_size >> 0    & 0xff;
     size[1] = file_size >> 8    & 0xff;
     size[2] = file_size >> 16   & 0xff;
     size[3] = file_size >> 24   & 0xff;
     send(fd, &size, sizeof(size), 0);
-
-    std::vector<char> buffer(1024, 0);
+    stream.seekg(0);
+    char buffer[1024];
     while (!stream.eof()) {
-        stream.read(buffer.data(), buffer.size());
+        stream.read(buffer, sizeof(buffer));
         std::streamsize s = stream.gcount();
 
-        send(this->fd, buffer.data(), s, 0);
+        send(this->fd, buffer, s, 0);
+        ESP_LOGI(this->TAG.c_str(), "Sent %d bytes", s);
     }
-    //*result = ESP_OK;
     return;
 }

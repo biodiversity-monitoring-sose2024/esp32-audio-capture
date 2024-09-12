@@ -7,6 +7,8 @@
 #include "storage.h"
 #include <periph_sdcard.h>
 #include <esp_log.h>
+#include <filesystem>
+#include "dirent.h"
 
 static const char *TAG = "main";
 
@@ -36,21 +38,25 @@ extern "C" void app_main()
     .mode = periph_sdcard_mode_t::SD_MODE_4_LINE
   };
   Storage storage(sdcard_cfg);
-  storage.init();
+  ESP_ERROR_CHECK(storage.init());
 
-  if (FILE* f = fopen("/sdcard/test.txt", "r")) {
-    ESP_LOGI(TAG, "Exists");
-    fclose(f);
-  }
-  else {
-    ESP_LOGE(TAG, "No");
+  DIR *dir;
+  struct dirent *ent;
+  if ((dir = opendir ("/sdcard")) != NULL) {
+    /* print all the files and directories within directory */
+    while ((ent = readdir (dir)) != NULL) {
+      ESP_LOGI(TAG, "File: %s", ent->d_name);
+    }
+    closedir (dir);
+  } else {
+    /* could not open directory */
+    ESP_LOGE(TAG, "Could not open directory");
   }
 
   // Init TCP Client
   ESP_LOGI(TAG, "Init tcp client");
   Client client(CONFIG_ESP_TCP_SERVER_IP, CONFIG_ESP_TCP_SERVER_PORT);
   ESP_ERROR_CHECK(client.init());
-  std::string filename = "StarWars60.wav";
-
-  client.start_file_transfer(storage, filename);
+  std::string filename = "/sdcard/piano2122232323.wav";
+  client.start_file_transfer(filename);
 }
