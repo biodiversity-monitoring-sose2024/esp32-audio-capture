@@ -13,15 +13,12 @@ class Client {
         esp_err_t init(void);
         std::thread* start_file_transfer(std::string filename);
         int8_t* receive();
-        void join();
-
+        ~Client();
     private:
         const std::string TAG = "tcp_client";
         // File transfer
-        std::thread file_thread;
-        void run_file_transfer();
+        void run_file_transfer(std::string filename, int fd);
     protected:
-        int fd = -1;
         struct sockaddr_in addr;
         
 }; 

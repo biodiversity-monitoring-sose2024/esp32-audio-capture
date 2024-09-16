@@ -19,19 +19,17 @@ Client::Client(std::string host, int port)
 }
 
 esp_err_t Client::init(void) {
-    this->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    if (this->fd < 0) {
-        return ESP_FAIL;
-    }
-
-    return ESP_OK;
+   return ESP_OK;
 }
 
 std::thread* Client::start_file_transfer(std::string filename)
 {
-    ESP_LOGI(this->TAG.c_str(), "Starting thread...");
-    ESP_LOGI(this->TAG.c_str(), "In send thread");
-    int err = connect(this->fd, (const sockaddr *) &this->addr, sizeof(this->addr));
+    int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    if (fd < 0) {
+        return nullptr;
+    }
+    
+    int err = connect(fd, (const sockaddr *) &this->addr, sizeof(this->addr));
     ESP_LOGI(this->TAG.c_str(), "After connect");
     if (err != 0) {
         err = errno;
@@ -39,6 +37,7 @@ std::thread* Client::start_file_transfer(std::string filename)
         return nullptr;
     }
     ESP_LOGI(this->TAG.c_str(), "Connected");
+    ESP_LOGI(this->TAG.c_str(), "Starting thread...");
     auto cfg = esp_pthread_get_default_config();
     cfg.thread_name = "file_transfer";
     cfg.pin_to_core = 0;
@@ -46,7 +45,7 @@ std::thread* Client::start_file_transfer(std::string filename)
     cfg.prio = 5;
     cfg.inherit_cfg = true;
     esp_pthread_set_cfg(&cfg);
-    return new std::thread(&Client::run_file_transfer, this);
+    return new std::thread(&Client::run_file_transfer, this, filename, fd);
 }
 
 int8_t *Client::receive()
@@ -54,19 +53,18 @@ int8_t *Client::receive()
     return nullptr;
 }
 
-void Client::join()
+Client::~Client()
 {
-    this->file_thread.join();
 }
 
-void Client::run_file_transfer()
+void Client::run_file_transfer(std::string filename, int fd)
 {
-    std::string filename = "/sdcard/piano2122232323.wav";
-
+    ESP_LOGI(this->TAG.c_str(), "FD: %d", fd);
     std::ifstream stream(filename, std::ios::binary | std::ios::ate);
     uint32_t raw_size = stream.tellg();
     if (raw_size == -1) {
         ESP_LOGE(this->TAG.c_str(), "File %s could not be opened for reading!", filename.c_str());
+        close(fd);
         return;
     }
     ESP_LOGI(this->TAG.c_str(), "File %s has size %ld", filename.c_str(), raw_size);
@@ -85,8 +83,8 @@ void Client::run_file_transfer()
         stream.read(buffer, sizeof(buffer));
         std::streamsize s = stream.gcount();
 
-        send(this->fd, buffer, s, 0);
-        ESP_LOGI(this->TAG.c_str(), "Sent %d bytes", s);
+        send(fd, buffer, s, 0);
     }
-    return;
+
+    close(fd);
 }

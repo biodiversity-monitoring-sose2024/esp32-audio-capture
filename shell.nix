@@ -13,5 +13,6 @@ pkgs.mkShell {
 
   shellHook = ''
     export ADF_PATH=${esp-adf}
-  '';
+    export OPENOCD_SCRIPTS='${esp-idf}/openocd-esp32/share/openocd/scripts'
+    '';
 }

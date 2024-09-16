@@ -14,7 +14,8 @@
                     "${config:idf.espIdfPathWin}/components",
                     "${workspaceFolder}"
                 ]
-            }
+            },
+            "compilerPath": "${config:idf.toolsPath}undefined"
         }
     ],
     "version": 4

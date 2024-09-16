@@ -263,6 +263,26 @@ rec {
     };
   };
 
+  esp-debug-backend = buildPythonPackage rec {
+    pname = "esp-debug-backend";
+    version = "1.0.3";
+
+    format = "pyproject";
+
+    src = fetchPypi {
+      inherit pname version;
+      sha256 = "sha256-HqeQKR6l3yBkK7ABHNpE26lpL8Uwroc6hxWNv4QzHgs=";
+    };
+
+    propagatedBuildInputs = [
+      pyelftools
+      setuptools
+      pygdbmi
+    ];
+    
+    doCheck = false;
+  };
+
   esp-idf-panic-decoder = buildPythonPackage rec {
     pname = "esp-idf-panic-decoder";
     version = "1.1.0";

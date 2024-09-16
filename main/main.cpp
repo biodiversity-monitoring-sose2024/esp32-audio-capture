@@ -9,6 +9,7 @@
 #include <esp_log.h>
 #include <filesystem>
 #include "dirent.h"
+#include "audio_recorder.h"
 
 static const char *TAG = "main";
 
@@ -57,8 +58,15 @@ extern "C" void app_main()
   ESP_LOGI(TAG, "Init tcp client");
   Client client(CONFIG_ESP_TCP_SERVER_IP, CONFIG_ESP_TCP_SERVER_PORT);
   ESP_ERROR_CHECK(client.init());
-  std::string filename = "/sdcard/piano2122232323.wav";
-  auto thread = client.start_file_transfer(filename);
-  (*thread).join();
-  delete thread;
+  
+  // Init Audio Recorder
+  audio_recorder_config_t audio_conf = {
+    .sample_rate = 48000,
+    .core = 1,
+    .record_path = "/sdcard",
+    .buffer_size = 2048,
+  };
+  AudioRecorder audio(audio_conf, std::move(client));
+  audio.start();
+  audio.recording_thread.join();
 }
