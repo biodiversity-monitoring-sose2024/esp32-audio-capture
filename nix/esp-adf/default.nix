@@ -1,5 +1,5 @@
-{ rev ? "d0381eb"
-, sha256 ? "sha256-OMrU94xHqoHsajscUFmVuZunEk1zMG6XprOf8224/j8="
+{ rev ? "v2.7"
+, sha256 ? "sha256-rO8+coL855xn2cqFT/BINp4uJbgUHMXUQP9DEOXf5hQ="
 , stdenv
 , lib
 , fetchFromGitHub

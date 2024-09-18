@@ -8,8 +8,9 @@ void AudioRecorder::start()
     this->board_handle = audio_board_init();
     audio_hal_ctrl_codec(this->board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_ENCODE, AUDIO_HAL_CTRL_START);
     audio_hal_set_volume(this->board_handle->audio_hal, 100);
-    //es8388_write_reg(ES8388_ADCCONTROL1, 0x00);
-    //es8388_write_reg(ES8388_ADCCONTROL2, ADC_INPUT_LINPUT2_RINPUT2);
+    es8388_write_reg(ES8388_ADCCONTROL1, 0b01110111);
+    es8388_write_reg(ES8388_ADCCONTROL10, 0b11111110);
+    es8388_write_reg(ES8388_ADCCONTROL2, ADC_INPUT_LINPUT2_RINPUT2);
 
     this->i2s_config = { 
         .type = AUDIO_STREAM_READER, 
@@ -131,8 +132,8 @@ void AudioRecorder::run()
         audio_pipeline_terminate(this->pipeline);
 
         ESP_LOGI(this->TAG.c_str(), "[ * ] Sending %s...", filename.c_str());  
-        auto thread = this->client.start_file_transfer(filename);
+        /*auto thread = this->client.start_file_transfer(filename);
         thread->detach();
-        delete thread;
+        delete thread;*/
     }
 }

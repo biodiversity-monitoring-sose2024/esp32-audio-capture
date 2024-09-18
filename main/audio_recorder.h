@@ -6,6 +6,7 @@
 #include <wav_encoder.h>
 #include <fatfs_stream.h>
 #include <audio_pipeline.h>
+#include <memory>
 
 typedef struct {
     uint32_t sample_rate;
@@ -16,7 +17,7 @@ typedef struct {
 
 class AudioRecorder {
     public:
-        AudioRecorder(audio_recorder_config_t& config, Client&& client)
+        AudioRecorder(audio_recorder_config_t& config, std::shared_ptr<Client>& client)
             : config(config), client(client)
             {};
         void start();
@@ -44,7 +45,7 @@ class AudioRecorder {
 
         audio_pipeline_handle_t pipeline;
 
-        Client client;
+        std::shared_ptr<Client> client;
         std::string TAG = "audio_recorder";
 
         bool stop_requested = false;

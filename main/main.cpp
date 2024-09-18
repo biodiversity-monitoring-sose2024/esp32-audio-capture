@@ -56,8 +56,8 @@ extern "C" void app_main()
 
   // Init TCP Client
   ESP_LOGI(TAG, "Init tcp client");
-  Client client(CONFIG_ESP_TCP_SERVER_IP, CONFIG_ESP_TCP_SERVER_PORT);
-  ESP_ERROR_CHECK(client.init());
+  std::shared_ptr<Client> client = std::make_shared<Client>(CONFIG_ESP_TCP_SERVER_IP, 5001);
+  client->init();
   
   // Init Audio Recorder
   audio_recorder_config_t audio_conf = {
@@ -66,7 +66,7 @@ extern "C" void app_main()
     .record_path = "/sdcard",
     .buffer_size = 2048,
   };
-  AudioRecorder audio(audio_conf, std::move(client));
+  AudioRecorder audio(audio_conf, client);
   audio.start();
   audio.recording_thread.join();
 }
