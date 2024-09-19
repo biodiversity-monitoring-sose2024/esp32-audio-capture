@@ -125,7 +125,7 @@ void AudioRecorder::run()
         audio_pipeline_run(this->pipeline);
 
         ESP_LOGI(this->TAG.c_str(), "[ * ] Recording %s...", filename.c_str()); 
-        std::this_thread::sleep_for(39s);
+        std::this_thread::sleep_for(10s);
         
         audio_pipeline_stop(this->pipeline);
         audio_pipeline_wait_for_stop(this->pipeline);
@@ -135,5 +135,6 @@ void AudioRecorder::run()
         /*auto thread = this->client.start_file_transfer(filename);
         thread->detach();
         delete thread;*/
+        this->client->send_file(filename, data_type_t::WAV);
     }
 }

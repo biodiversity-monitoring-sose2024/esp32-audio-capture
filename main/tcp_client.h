@@ -17,8 +17,11 @@ typedef struct {
 
 typedef struct send_queue_entry_t {
     std::shared_ptr<request_t> request;
-    std::vector<response_type_t> expected_payloads = { response_type_t::ACK, response_type_t::BLOCKED, response_type_t::RESET };
-    std::function<void(bool success, response_t*)> callback;
+    std::string filename = "";
+    std::function<void(void)> on_error = []{};
+    std::function<void(void)> on_success = []{};
+    std::vector<response_type_t> custom_handling_payloads = { };
+    std::function<bool(response_t*)> custom_callback = [](response_t*){ return true; };
 } send_queue_entry_t;
 
 class Client {
@@ -34,7 +37,7 @@ class Client {
         /// @brief Queues to send a file to a server
         /// @param filename The full path of the file to send
         /// @param callback A callback on success
-        void send_file(std::string filename, std::function<void(response_t)> callback);
+        void send_file(std::string filename, data_type_t data_type, bool delete_on_success = true);
         
         /// @brief Destroys the client and frees all resources
         ~Client();
@@ -43,7 +46,7 @@ class Client {
         std::counting_semaphore<1> queue_semaphore {1};
         std::counting_semaphore<1> config_semaphore {1};
         /// @brief A queue containing elements to be sent
-        std::queue<send_queue_entry_t> send_queue;
+        std::deque<send_queue_entry_t> send_queue;
         /// @brief The config containing configuration information
         /// about upstream servers
         upstream_config_t upstream_config;
@@ -58,17 +61,27 @@ class Client {
         std::jthread update_config_thread;
         /// @brief A background threads fetching items from the queue to send
         void update_config(std::stop_token stop_token);
-
-        // util
-        void send_request(
-                request_t* request, 
-                std::function<void(bool success, response_t* response)> callback, 
-                std::vector<response_type_t> expected_payloads = { response_type_t::ACK, response_type_t::BLOCKED, response_type_t::RESET }
-            );
         sockaddr_in addr_from_array(std::array<uint8_t,4> ip_bytes, int port);
         sockaddr_in addr_from_string(std::string ip, int port);
         std::array<uint8_t, 4> ip_from_string(std::string ip);
         std::string ip_from_array(std::array<uint8_t, 4> ip_bytes);
+
+        // UTIL
+        
+        /// @brief Tries to create a connection to the given address
+        /// @param fd The int to write the file descriptor to if successful
+        /// @param addr The address to connect to
+        /// @return A bool indicating whether or not the attempt was successful
+        bool connect_socket(int& fd, sockaddr_in& addr);
+
+        /// @brief Sends a response using a given socket
+        /// @param fd The file descriptor for the socket 
+        /// @param response The response to send
+        /// @return A bool indicating whether or not the attempt was successful
+        bool send_response(int fd, response_t* response);
 }; 
+
+
+
 
 #endif

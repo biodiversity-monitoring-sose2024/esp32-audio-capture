@@ -2,6 +2,8 @@
 #define MESSAGES_H
 #include <cstdint>
 #include <array>
+#include <fstream>
+
 // OPCODES
 typedef enum : uint8_t {
     RESET           = 0x00,
@@ -16,7 +18,7 @@ typedef enum : uint8_t {
     REQ_CONFIG          = 0x30,
 } request_type_t;
 
-typedef enum {
+typedef enum : uint8_t {
     WAV             = 0x01,
     CSV             = 0x10,
 } data_type_t;
@@ -24,26 +26,26 @@ typedef enum {
     Response type structs
 */
 
-typedef struct response_t {
+typedef struct __attribute__((packed,aligned(1))) response_t {
     response_type_t type;
     response_t(response_type_t type)
         : type(type)
         {}
 } response_t;
 
-typedef struct ack_response_t : response_t {
+typedef struct __attribute__((packed,aligned(1))) ack_response_t : response_t {
     ack_response_t()
         : response_t(response_type_t::ACK)
         {}
 } ack_response_t;
 
-typedef struct reset_response_t : response_t {
+typedef struct __attribute__((packed,aligned(1))) reset_response_t : response_t {
     reset_response_t()
         : response_t(response_type_t::RESET)
         {}
 } reset_response_t;
 
-typedef struct blocked_response_t : response_t {
+typedef struct __attribute__((packed,aligned(1))) blocked_response_t : response_t {
     int16_t expected_time_of_business;
     blocked_response_t(int16_t expected_time_of_business) 
         : response_t(response_type_t::BLOCKED)
@@ -51,7 +53,7 @@ typedef struct blocked_response_t : response_t {
     {}
 } blocked_response_t;
 
-typedef struct config_response_t : response_t {
+typedef struct __attribute__((packed,aligned(1))) config_response_t : response_t {
     // UNIX ms timestamp
     int64_t next_timeslot_in;
     uint16_t server_addresses_len;
@@ -68,7 +70,7 @@ typedef struct config_response_t : response_t {
     Request type structs
 */
 
-typedef struct request_t {
+typedef struct __attribute__((packed,aligned(1))) request_t {
     request_type_t type;
     uint8_t node_id[6]; 
 
@@ -81,7 +83,7 @@ typedef struct request_t {
         }
 } request_t;
 
-typedef struct session_request_t : request_t {
+typedef struct __attribute__((packed,aligned(1))) session_request_t : request_t {
     uint8_t power_level;
     uint8_t memory_usage;
     request_type_t next_request;
@@ -94,22 +96,22 @@ typedef struct session_request_t : request_t {
     {}
 } session_request_t;
 
-typedef struct data_request_t : request_t {
+typedef struct __attribute__((packed,aligned(1))) data_request_t : request_t {
     uint64_t timestamp;
     data_type_t data_type;
     uint32_t data_length;
     uint8_t* data;
 
-    data_request_t(std::array<uint8_t,6> node_id, uint64_t timestamp, data_type_t data_type, uint32_t data_length, std::vector<uint8_t> data)
+    data_request_t(std::array<uint8_t,6> node_id, uint64_t timestamp, data_type_t data_type, uint32_t data_length, uint8_t* data)
         : request_t(request_type_t::DATA, node_id),
         timestamp(timestamp),
         data_type(data_type),
         data_length(data_length),
-        data(data.data())
+        data(data)
     {}
 } data_request_t;
 
-typedef struct config_request_t : request_t {
+typedef struct __attribute__((packed,aligned(1))) config_request_t : request_t {
     config_request_t(std::array<uint8_t, 6> node_id)
         : request_t(request_type_t::REQ_CONFIG, node_id)
     {}
