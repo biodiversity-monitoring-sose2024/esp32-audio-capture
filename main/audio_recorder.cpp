@@ -1,5 +1,6 @@
 #include "audio_recorder.h"
 #include "util.h"
+#include "time_util.h"
 #include <esp_log.h>
 #include <es8388.h>
 
@@ -8,9 +9,13 @@ void AudioRecorder::start()
     this->board_handle = audio_board_init();
     audio_hal_ctrl_codec(this->board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_ENCODE, AUDIO_HAL_CTRL_START);
     audio_hal_set_volume(this->board_handle->audio_hal, 100);
-    es8388_write_reg(ES8388_ADCCONTROL1, 0b01110111);
-    es8388_write_reg(ES8388_ADCCONTROL10, 0b11111110);
+    //es8388_write_reg(ES8388_ADCCONTROL1, 0b01110111);
+    es8388_write_reg(ES8388_ADCCONTROL10, 0b11111010);
     es8388_write_reg(ES8388_ADCCONTROL2, ADC_INPUT_LINPUT2_RINPUT2);
+    //es8388_write_reg(ES8388_ADCCONTROL5, 0b00000110);
+    es8388_write_reg(ES8388_ADCCONTROL8, 0b01111000); //Reg16 - LADCVOL Attenuation
+    es8388_write_reg(ES8388_ADCCONTROL9, 0b01111000); //Reg17 - RADCVOL Attenuation
+    es8388_write_reg(ES8388_ADCCONTROL14, 0b01011000);
 
     this->i2s_config = { 
         .type = AUDIO_STREAM_READER, 
@@ -36,7 +41,7 @@ void AudioRecorder::start()
                 .ws_width = I2S_DATA_BIT_WIDTH_16BIT, 
                 .ws_pol = false, 
                 .bit_shift = true, 
-                .msb_right = (I2S_DATA_BIT_WIDTH_16BIT <= I2S_DATA_BIT_WIDTH_16BIT) ? true : false, }, 
+                .msb_right = (I2S_DATA_BIT_WIDTH_16BIT <= I2S_DATA_BIT_WIDTH_16BIT) ? true : false, },
                 .gpio_cfg = { 
                     .invert_flags = { .mclk_inv = false, .bclk_inv = false, }, 
                 }, 
@@ -125,7 +130,7 @@ void AudioRecorder::run()
         audio_pipeline_run(this->pipeline);
 
         ESP_LOGI(this->TAG.c_str(), "[ * ] Recording %s...", filename.c_str()); 
-        std::this_thread::sleep_for(10s);
+        std::this_thread::sleep_for(39s);
         
         audio_pipeline_stop(this->pipeline);
         audio_pipeline_wait_for_stop(this->pipeline);

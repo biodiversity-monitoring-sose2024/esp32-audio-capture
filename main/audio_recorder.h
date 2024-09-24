@@ -1,6 +1,6 @@
 #ifndef AUDIO_RECORDER_H
 #define AUDIO_RECORDER_H
-#include "tcp_client.h"
+#include "client.h"
 #include <board.h>
 #include <i2s_stream.h>
 #include <wav_encoder.h>

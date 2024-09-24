@@ -4,10 +4,6 @@ dependencies:
   ## Required IDF version
   idf:
     version: ">=4.1.0"
-
-  tcp_stack:
-    path: ../components/tcp_stack
-
   # # Put list of dependencies here
   # # For components maintained by Espressif:
   # component: "~1.0.0"

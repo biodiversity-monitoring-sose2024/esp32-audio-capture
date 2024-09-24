@@ -4,3 +4,5 @@ sdkconfig*
 managed_components
 *.lock
 *.elf
+cmake-build-debug/
+.idea/

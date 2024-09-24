@@ -9,6 +9,6 @@ set(PROJECT_VER 1.1)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 include($ENV{ADF_PATH}/CMakeLists.txt)
 set(CXXFLAGS  "-Wpadded")
-set(CMAKE_CXX_FLAGS "${CXXFLAGS}")
+#set(CMAKE_CXX_FLAGS "${CXXFLAGS}")
 
 project(main)
