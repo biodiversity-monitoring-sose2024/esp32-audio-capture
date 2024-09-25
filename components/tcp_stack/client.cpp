@@ -3,6 +3,7 @@
 #include <esp_random.h>
 #include <format>
 #include <fstream>
+#include <esp_timer.h>
 
 #include "client.h"
 #include "time_util.h"
@@ -301,7 +302,7 @@ void Client::update_config(std::stop_token stop_token) {
 
         std::this_thread::sleep_for(10s);
         SemaphoreLock<1> lock(this->queue_semaphore);
-        this->send_queue.push_back(entry);
+        //this->send_queue.push_back(entry);
     } while (!stop_token.stop_requested());
 }
 
@@ -452,19 +453,25 @@ bool send_data_request(const int& fd, payload_t* payload, std::string& filename)
     }
 
     ESP_LOGD("send data", "Sending data...");
+    auto time = esp_timer_get_time() / 1000;
     // Send data
     const int bufferSize = 8 * 1024;
     char* buffer = (char*)malloc(bufferSize);
     while (!file.eof()) {
         file.read(buffer, bufferSize);
-        err = send(fd, buffer, file.gcount(), 0);
+        auto size = file.gcount();
+        err = send(fd, buffer, size, 0);
         if (err == -1) {
+            free(buffer);
             err = errno;
             ESP_LOGE("data request", "Error while sending data (%d): %s", err, strerror(err));
             file.close();
             return false;
         }
+        ESP_LOGD("send data", "Sent %d bytes", size);
     }
+    free(buffer);
+    ESP_LOGD("send data", "Finished sending data in %llu ms", esp_timer_get_time() / 1000 - time);
 
     file.close();
     return true;
