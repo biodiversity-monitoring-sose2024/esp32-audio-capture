@@ -36,8 +36,8 @@ public:
         // ESP_LOGI(TAG, "Starting FFT analysis with %d samples.", N_SAMPLES);
 
 
-        // ESP_LOGI(TAG, "Input data (first 10 samples):");
-        // for (int i = 0; i < 10 && i < N_SAMPLES; ++i) {
+        // ESP_LOGI(TAG, "Input data (first 100 samples):");
+        // for (int i = 0; i < 100 && i < N_SAMPLES; ++i) {
         //     ESP_LOGI(TAG, "input[%d]: %.6f", i, input[i]);
         // }       
 
@@ -69,6 +69,7 @@ public:
         // Frequenzspektrum analysieren
         for (int i = 0; i < N_SAMPLES / 2; ++i) {  
             float real_part = y_cf[i * 2];
+            // ESP_LOGI(TAG, "Real part: %.2f ", real_part);
             float frequency = (i * SAMPLE_RATE) / N_SAMPLES;
 
             if (frequency >= FREQUENZ_MIN && frequency <= FREQUENZ_MAX) {
@@ -83,7 +84,7 @@ public:
                 if (amplitude > THRESHOLD) {
                     // ESP_LOGI(TAG, "Frequency detected: %.2f Hz with amplitude: %.2f", frequency, amplitude);
                     if (!birdDetected) {
-                        ESP_LOGI(TAG, "Frequency detected: %.2f Hz with amplitude: %.2f", frequency, amplitude);
+                        // ESP_LOGI(TAG, "Frequency detected: %.2f Hz with amplitude: %.2f", frequency, amplitude);
                     }
                     found = true;
                 }
