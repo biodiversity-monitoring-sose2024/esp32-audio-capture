@@ -41,7 +41,7 @@ void AudioRecorder::start()
                 .ws_width = I2S_DATA_BIT_WIDTH_16BIT, 
                 .ws_pol = false, 
                 .bit_shift = true, 
-                .msb_right = (I2S_DATA_BIT_WIDTH_16BIT <= I2S_DATA_BIT_WIDTH_16BIT) ? true : false, },
+                .msb_right = (I2S_DATA_BIT_WIDTH_16BIT <= I2S_DATA_BIT_WIDTH_16BIT) ? true : false, }, 
                 .gpio_cfg = { 
                     .invert_flags = { .mclk_inv = false, .bclk_inv = false, }, 
                 }, 
