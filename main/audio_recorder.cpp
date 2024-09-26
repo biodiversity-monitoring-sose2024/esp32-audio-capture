@@ -1,5 +1,6 @@
 #include "audio_recorder.h"
 #include "util.h"
+#include "time_util.h"
 #include <esp_log.h>
 #include <es8388.h>
 #include "dsps_fft_recognition.h"
@@ -11,7 +12,7 @@ void AudioRecorder::start()
     audio_hal_set_volume(this->board_handle->audio_hal, 100);
     //es8388_write_reg(ES8388_ADCCONTROL1, 0b01110111);
     es8388_write_reg(ES8388_ADCCONTROL10, 0b11111010);
-    es8388_write_reg(ES8388_ADCCONTROL2, ADC_INPUT_LINPUT2_RINPUT2); 
+    es8388_write_reg(ES8388_ADCCONTROL2, ADC_INPUT_LINPUT2_RINPUT2);
     //es8388_write_reg(ES8388_ADCCONTROL5, 0b00000110);
     es8388_write_reg(ES8388_ADCCONTROL8, 0b01111000); //Reg16 - LADCVOL Attenuation
     es8388_write_reg(ES8388_ADCCONTROL9, 0b01111000); //Reg17 - RADCVOL Attenuation
@@ -142,9 +143,10 @@ void AudioRecorder::run()
 
         if (birdDetected) {
             ESP_LOGI(this->TAG.c_str(), "[ * ] Sending %s...", filename.c_str());  
-            auto thread = this->client.start_file_transfer(filename);
+            /*auto thread = this->client.start_file_transfer(filename);
             thread->detach();
-            delete thread;
+            delete thread;*/
+            this->client->send_file(filename, data_type_t::WAV);
         }else {
             ESP_LOGI(this->TAG.c_str(), "No bird detected, skipping file transfer!");  
         }

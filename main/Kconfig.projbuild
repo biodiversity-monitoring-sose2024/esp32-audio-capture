@@ -1,4 +1,4 @@
-menu "Example Configuration"
+menu "WIFI Config"
 
     config ESP_WIFI_SSID
         string "WiFi SSID"
@@ -17,18 +17,6 @@ menu "Example Configuration"
         default "espressif"
         help
             Hostname for this ESP32
-
-    config ESP_TCP_SERVER_IP
-        string "Target IP"
-        default ""
-        help
-            The IP of the server to connect to
-    
-    config ESP_TCP_SERVER_PORT
-        int "Target Port"
-        default ""
-        help
-            The Port of the server to connect to
 
     choice ESP_WIFI_SAE_MODE
         prompt "WPA3 SAE mode selection"
@@ -84,63 +72,16 @@ menu "Example Configuration"
 
 endmenu
 
-menu "SD Card"
-    config SD_PIN_MISO
-        int "MISO Pin"
-        default 0
-        help 
-            MISO Pin for SD card
-    
-    config SD_PIN_MOSI
-        int "MOSI Pin"
-        default 0
+menu "Server config"
+    config ESP_TCP_SERVER_IP
+        string "Target IP"
+        default ""
         help
-            MOSI Pin for SD card
-    
-    config SD_PIN_CLK
-        int "CLK Pin"
-        default 0
-        help
-            Clock Pin for SD card
+            The IP of the server to connect to
 
-    config SD_PIN_CS
-        int "CS Pin"
-        default 0
+    config ESP_TCP_SERVER_PORT
+        int "Target Port"
+        default ""
         help
-            CS Pin for SD card   
-    
-    config ENABLE_ADC
-        bool "Enable ADC Features"
-        default n
-        help
-            Enables ADC Features for SD Card
-    
-    config ADC_PIN_MISO
-        int "ADC MISO Pin"
-        default 0
-        depends on ENABLE_ADC
-        help
-            MISO Pin for ADC
-     
-    config ADC_PIN_MOSI
-        int "ADC MOSI Pin"
-        default 0
-        depends on ENABLE_ADC
-        help
-            MISO Pin for ADC
-
-    config ADC_PIN_CLK
-        int "ADC Clock Pin"
-        default 0
-        depends on ENABLE_ADC
-        help
-            MISO Pin for ADC
-
-   config ADC_PIN_CS
-        int "ADC CS Pin"
-        default 0
-        depends on ENABLE_ADC
-        help
-            MISO Pin for ADC
-                            
+            The Port of the server to connect to
 endmenu
