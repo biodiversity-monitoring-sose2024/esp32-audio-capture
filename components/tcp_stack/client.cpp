@@ -269,10 +269,17 @@ void Client::update_config(std::stop_token stop_token) {
 
                 ESP_LOGD(this->TAG, "Got timeslot in %llu, length of addresses %d", config->next_timeslot_in, config->server_addresses_len);
 
+                int header_size = sizeof(config_response_t) - sizeof(config->server_addresses);
+
+                auto test = reinterpret_cast<unsigned char*>(config);
+                for (int i = 0; i < 15; i++) {
+                    ESP_LOGD(this->TAG, "Got byte: %02x", test[i]);
+                }
+
                 std::vector<server_t> new_servers {};
                 int port = this->server_config.servers[0].port;
                 for (int i = 0; i < config->server_addresses_len*4; i+=4) {
-                    auto ip_string = std::format("{0}.{1}.{2}.{3}", config->server_addresses[i],config->server_addresses[i+1],config->server_addresses[i+2],config->server_addresses[i+3]);
+                    auto ip_string = std::format("{0}.{1}.{2}.{3}", test[header_size+i], test[header_size+i + 1], test[header_size+i + 2], test[header_size+i + 3]);
 
                     auto existing_server = std::find_if(this->server_config.servers.begin(), this->server_config.servers.end(), [&](server_t& item) {
                         // We're not sending different ports
@@ -302,7 +309,7 @@ void Client::update_config(std::stop_token stop_token) {
 
         std::this_thread::sleep_for(10s);
         SemaphoreLock<1> lock(this->queue_semaphore);
-        //this->send_queue.push_back(entry);
+        this->send_queue.push_back(entry);
     } while (!stop_token.stop_requested());
 }
 
@@ -336,6 +343,10 @@ bool Client::receive_payload(const int &fd, std::shared_ptr<payload_t> &ptr) con
         err = errno;
         ESP_LOGE("receive", "Receiving data failed: errno %d: %s", err, strerror(err));
         return false;
+    }
+
+    for (auto& byte : input_buff) {
+        ESP_LOGD(this->TAG, "Got byte: %02x", byte);
     }
 
     if (result != received_size) {
@@ -455,7 +466,7 @@ bool send_data_request(const int& fd, payload_t* payload, std::string& filename)
     ESP_LOGD("send data", "Sending data...");
     auto time = esp_timer_get_time() / 1000;
     // Send data
-    const int bufferSize = 8 * 1024;
+    const int bufferSize = 2 * 8 * 1024;
     char* buffer = (char*)malloc(bufferSize);
     while (!file.eof()) {
         file.read(buffer, bufferSize);
@@ -468,7 +479,7 @@ bool send_data_request(const int& fd, payload_t* payload, std::string& filename)
             file.close();
             return false;
         }
-        ESP_LOGD("send data", "Sent %d bytes", size);
+        //ESP_LOGD("send data", "Sent %d bytes", size);
     }
     free(buffer);
     ESP_LOGD("send data", "Finished sending data in %llu ms", esp_timer_get_time() / 1000 - time);
