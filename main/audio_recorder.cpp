@@ -1,5 +1,6 @@
 #include "audio_recorder.h"
 #include "util.h"
+#include "time_util.h"
 #include <esp_log.h>
 #include <es8388.h>
 
@@ -109,7 +110,7 @@ void AudioRecorder::run()
         audio_pipeline_register(this->pipeline, this->wav_encoder, "encoder");
         audio_pipeline_register(this->pipeline, this->wav_fatfs_stream_writer, "writer");
         const char* link_tag[5] = {"reader", "decoder", "fft_filter", "encoder", "writer"}; 
-        audio_pipeline_link(this->pipeline, &link_tag[0], 3);
+        audio_pipeline_link(this->pipeline, &link_tag[0], 5);
 
         const char *wav_file_path = "/sdcard/vogel_aufnahme_zweiten_fuenf.wav";  // Setze den Pfad zu deiner WAV-Datei
         audio_element_set_uri(this->wav_fatfs_stream_reader, wav_file_path);    
@@ -125,13 +126,16 @@ void AudioRecorder::run()
         audio_pipeline_wait_for_stop(this->pipeline);
         audio_pipeline_terminate(this->pipeline);
 
+
         if (birdDetected) {
             ESP_LOGI(this->TAG.c_str(), "[ * ] Sending %s...", filename.c_str());  
-            auto thread = this->client.start_file_transfer(filename);
+            /*auto thread = this->client.start_file_transfer(filename);
             thread->detach();
-            delete thread;
+            delete thread;*/
+            this->client->send_file(filename, data_type_t::WAV);
         }else {
             ESP_LOGI(this->TAG.c_str(), "No bird detected, skipping file transfer!");  
         }
+        
     }
 }

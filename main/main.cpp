@@ -2,7 +2,7 @@
 #include <esp_err.h>
 #include "nvs_flash.h"
 #include "wifi.h"
-#include "tcp_client.h"
+#include "client.h"
 #include <esp_pthread.h>
 #include "storage.h"
 #include <periph_sdcard.h>
@@ -10,12 +10,15 @@
 #include <filesystem>
 #include "dirent.h"
 #include "audio_recorder.h"
+#include "util.h"
 
 static const char *TAG = "main";
 
 extern "C" void app_main()
 {
-  //Initialize NVS
+    esp_log_level_set("sdmmc_req", esp_log_level_t::ESP_LOG_INFO);
+    esp_log_level_set("sdmmc_cmd", esp_log_level_t::ESP_LOG_INFO);
+    //Initialize NVS
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     ESP_ERROR_CHECK(nvs_flash_erase());
@@ -56,8 +59,11 @@ extern "C" void app_main()
 
   // Init TCP Client
   ESP_LOGI(TAG, "Init tcp client");
-  Client client(CONFIG_ESP_TCP_SERVER_IP, CONFIG_ESP_TCP_SERVER_PORT);
-  ESP_ERROR_CHECK(client.init());
+  std::string host = CONFIG_ESP_TCP_SERVER_IP;
+  int port = 5001;
+  auto mac = get_mac();
+  std::shared_ptr<Client> client = std::make_shared<Client>(mac, host, port);
+  client->init();
   
   // Init Audio Recorder
   audio_recorder_config_t audio_conf = {
@@ -66,7 +72,7 @@ extern "C" void app_main()
     .record_path = "/sdcard",
     .buffer_size = 2048,
   };
-  AudioRecorder audio(audio_conf, std::move(client));
+  AudioRecorder audio(audio_conf, client);
   audio.start();
   audio.recording_thread.join();
 }
