@@ -13,22 +13,18 @@
 #include "server_config.h"
 #include "payloads.h"
 #include "queue_entry.h"
+#include "client_config.h"
 
 class Client {
     public:
         /// @brief Creates an instance of Client with an initial server config
-        /// @param node_id The mac of the device as a byte array
+        /// @param config The config for this instance
         /// @param initial_host The initial host to fetch the config from and report results to
         /// @param port The port to use for all servers
-        Client(std::array<uint8_t, 6>& node_id, std::string& initial_host, int& port);
+        Client(client_config_t config, const std::string& initial_host, const int & port);
 
         /// @brief Initializes the client and starts background threads
-        void init();
-
-        /// @brief Queues to send a file to a server
-        /// @param filename The full path of the file to send
-        /// @param callback A callback on success
-        void send_file(std::string& filename, data_type_t data_type, bool delete_on_success = true);
+        void start();
         
         /// @brief Destroys the client and frees all resources
         ~Client();
@@ -46,11 +42,15 @@ class Client {
         /// about upstream servers
         server_config_t server_config;
         std::counting_semaphore<1> config_semaphore {1};
-        std::array<uint8_t, 6> node_id;
+        const client_config_t client_config;
 
         /**
          * Threads
          */
+        std::jthread gather_thread;
+        /// @brief A background thread gathering files from the defined path and enqueuing them
+        void gather(std::stop_token stop_token);
+
         std::jthread send_thread;
         /// @brief A background thread periodically updating the config
         void send_queue_item(std::stop_token stop_token);

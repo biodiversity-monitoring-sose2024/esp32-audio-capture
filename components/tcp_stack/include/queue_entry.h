@@ -11,10 +11,10 @@ typedef struct send_queue_entry_t {
 
     /// @brief Callback to call if the request did not succeed
     /// the returned bool will indicate if the request should be retried
-    std::function<bool(payload_type_t)> on_error = [](payload_type_t type){ return true; };
+    std::function<bool(const send_queue_entry_t*, const payload_type_t&)> on_error = [](const send_queue_entry_t* queue_entry, const payload_type_t& type){ return true; };
 
     /// @brief Callback to call if the request succeeded with an ACK
-    std::function<void(void)> on_success = []{};
+    std::function<void(const send_queue_entry_t*)> on_success = [](const send_queue_entry_t* queue_entry){};
 
     /// @brief A list of response types to handle in a special manner.
     /// Any response type other than BLOCKED, RESET, and ACK need to be defined here if they're expected,
@@ -23,7 +23,7 @@ typedef struct send_queue_entry_t {
     std::vector<payload_type_t> custom_handling_payloads = { };
 
     /// @brief The function to call when a custom payload type is encountered, the returned bool indicates if an ACK or a RESET should be returned to the sender.
-    std::function<bool(payload_t*)> custom_callback = [](payload_t*){ return true; };
+    std::function<bool(const send_queue_entry_t*, payload_t*)> custom_callback = [](const send_queue_entry_t* queue_entry, payload_t* payload){ return true; };
 } send_queue_entry_t;
 
 #endif

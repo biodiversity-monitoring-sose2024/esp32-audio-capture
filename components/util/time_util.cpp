@@ -1,6 +1,5 @@
 #include "time_util.h"
-#include <ctime>
-#include <syncstream>
+#include <sys/time.h>
 
 uint64_t get_time() noexcept {
     struct timeval tv{};

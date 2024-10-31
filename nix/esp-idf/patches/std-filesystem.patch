@@ -1,0 +1,234 @@
+From 333f1dbf12c20d24dfd4e4fe8e068e3c47dcbadf Mon Sep 17 00:00:00 2001
+From: Ivan Grokhotkov <ivan@espressif.com>
+Date: Mon, 6 May 2024 11:35:22 +0200
+Subject: [PATCH 1/2] docs(c++): mark std::filesystem supported in Chinese
+ docs, as well
+
+---
+ docs/zh_CN/api-guides/cplusplus.rst | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/docs/zh_CN/api-guides/cplusplus.rst b/docs/zh_CN/api-guides/cplusplus.rst
+index 50d9525bbec..0d5e2528d89 100644
+--- a/docs/zh_CN/api-guides/cplusplus.rst
++++ b/docs/zh_CN/api-guides/cplusplus.rst
+@@ -188,7 +188,6 @@ ESP-IDF 支持 ``iostream`` 功能，但应注意：
+ - 链接脚本生成器不支持将具有 C++ 链接的函数单独放置在内存的特定位置。
+ - 当与模板函数一起使用时，会忽略各种节属性（例如 ``IRAM_ATTR``）。
+ - vtable 位于 flash 中，在禁用 flash 缓存时无法访问。因此，在 :ref:`iram-safe-interrupt-handlers` 中应避免调用虚拟函数。目前尚无法使用链接器脚本生成器调整 vtable 的放置位置。
+-- 不支持 C++ 文件系统 (``std::filesystem``) 功能。
+ 
+ 
+ 注意事项
+-- 
+2.43.3
+
+
+From 13cf3f61240a4cca80a6f2c34388b913dbeaf000 Mon Sep 17 00:00:00 2001
+From: Ivan Grokhotkov <ivan@espressif.com>
+Date: Tue, 7 May 2024 15:31:38 +0200
+Subject: [PATCH 2/2] wip: std::filesystem tests
+
+---
+ components/newlib/sysconf.c                   |  44 ++++++-
+ components/vfs/test_apps/main/CMakeLists.txt  |   1 +
+ .../test_apps/main/test_std_filesystem.cpp    | 110 ++++++++++++++++++
+ 3 files changed, 154 insertions(+), 1 deletion(-)
+ create mode 100644 components/vfs/test_apps/main/test_std_filesystem.cpp
+
+diff --git a/components/newlib/sysconf.c b/components/newlib/sysconf.c
+index 545e4a2df42..fc7b6d04170 100644
+--- a/components/newlib/sysconf.c
++++ b/components/newlib/sysconf.c
+@@ -1,13 +1,18 @@
+ /*
+- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
++ * SPDX-FileCopyrightText: 2021-2024 Espressif Systems (Shanghai) CO LTD
+  *
+  * SPDX-License-Identifier: Apache-2.0
+  */
+ 
+ #include <unistd.h>
+ #include <errno.h>
++#include <limits.h>
++#include "esp_err.h"
++#include "esp_log.h"
+ #include "sdkconfig.h"
+ 
++static const char *TAG = "sysconf";
++
+ #ifdef CONFIG_FREERTOS_UNICORE
+ #define CPU_NUM 1
+ #else
+@@ -25,3 +30,40 @@ long sysconf(int arg)
+         return -1;
+     }
+ }
++
++// pathconf
++long fpathconf(int fildes, int name)
++{
++    if (name == _PC_PATH_MAX) {
++        return PATH_MAX;
++    }
++    ESP_LOGW(TAG, "fpathconf: unsupported name %d", name);
++    errno = EINVAL;
++    return -1;
++}
++
++long pathconf(const char *path, int name)
++{
++    if (name == _PC_PATH_MAX) {
++        return PATH_MAX;
++    }
++    ESP_LOGW(TAG, "pathconf: unsupported name %d", name);
++    errno = EINVAL;
++    return -1;
++}
++
++#include <sys/stat.h>
++
++int chmod(const char *path, mode_t mode)
++{
++    errno = ENOSYS;
++    return -1;
++}
++
++#include <dirent.h>
++
++int dirfd(DIR *dirp)
++{
++    errno = ENOSYS;
++    return -1;
++}
+diff --git a/components/vfs/test_apps/main/CMakeLists.txt b/components/vfs/test_apps/main/CMakeLists.txt
+index f9a5e774c90..970ec899504 100644
+--- a/components/vfs/test_apps/main/CMakeLists.txt
++++ b/components/vfs/test_apps/main/CMakeLists.txt
+@@ -3,6 +3,7 @@ set(src "test_app_main.c" "test_vfs_access.c"
+         "test_vfs_fd.c" "test_vfs_lwip.c"
+         "test_vfs_open.c" "test_vfs_paths.c"
+         "test_vfs_select.c"
++        "test_std_filesystem.cpp"
+         )
+ 
+ idf_component_register(SRCS ${src}
+diff --git a/components/vfs/test_apps/main/test_std_filesystem.cpp b/components/vfs/test_apps/main/test_std_filesystem.cpp
+new file mode 100644
+index 00000000000..7e5e99a0be1
+--- /dev/null
++++ b/components/vfs/test_apps/main/test_std_filesystem.cpp
+@@ -0,0 +1,110 @@
++/*
++ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
++ *
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++#include <filesystem>
++#include <cstring>
++#include <sys/errno.h>
++#include <sys/stat.h>
++#include "esp_vfs.h"
++#include "unity.h"
++
++/* Helper VFS driver to test std::filesystem */
++
++typedef struct {
++    const char* cmp_path;
++    int ret_errno;
++    struct stat ret_stat;
++} test_vfs_ctx_t;
++
++
++static int test_vfs_open(void* ctx, const char* path, int flags, int mode)
++{
++    test_vfs_ctx_t* vfs_ctx = (test_vfs_ctx_t*)ctx;
++    if (strcmp(path, vfs_ctx->cmp_path) != 0) {
++        errno = vfs_ctx->ret_errno;
++        return -1;
++    }
++    return 0;
++}
++
++static int test_vfs_stat(void* ctx, const char* path, struct stat* st)
++{
++    test_vfs_ctx_t* vfs_ctx = (test_vfs_ctx_t*)ctx;
++    if (strcmp(path, vfs_ctx->cmp_path) != 0) {
++        errno = vfs_ctx->ret_errno;
++        return -1;
++    }
++    *st = vfs_ctx->ret_stat;
++    return 0;
++}
++
++static void test_vfs_setup(test_vfs_ctx_t* ctx)
++{
++    esp_vfs_t desc = {
++        .flags = ESP_VFS_FLAG_CONTEXT_PTR,
++        .open_p = test_vfs_open,
++        .stat_p = test_vfs_stat,
++    };
++    TEST_ESP_OK(esp_vfs_register("/test", &desc, ctx));
++}
++
++static void test_vfs_teardown()
++{
++    TEST_ESP_OK(esp_vfs_unregister("/test"));
++}
++
++/* Actual std::filesystem tests start below */
++
++
++TEST_CASE("std::filesystem path, relative, absolute", "[std_filesystem]")
++{
++    // In IDF, CWD is always in the the root directory
++    TEST_ASSERT_MESSAGE(std::filesystem::current_path() == "/", "CWD should be root directory");
++
++    // Create absolute path from relative path
++    std::filesystem::path rel_path("test/file.txt");
++    std::filesystem::path abs_path = std::filesystem::absolute(rel_path);
++    TEST_ASSERT_EQUAL_STRING("/test/file.txt", abs_path.c_str());
++
++    // Create relative path from absolute path
++    std::filesystem::path rel_path2 = std::filesystem::relative(abs_path);
++    TEST_ASSERT_EQUAL_STRING("test/file.txt", rel_path2.c_str());
++
++    // Create relative path from absolute path with different base
++    std::filesystem::path rel_path3 = std::filesystem::relative(abs_path, "/test");
++    TEST_ASSERT_EQUAL_STRING("file.txt", rel_path3.c_str());
++}
++
++TEST_CASE("std::filesystem exists function", "[std_filesystem]")
++{
++    test_vfs_ctx_t test_ctx = {};
++
++    test_vfs_setup(&test_ctx);
++
++    // Test file exists
++    test_ctx.cmp_path = "/file.txt";
++    test_ctx.ret_stat = (struct stat){.st_mode = S_IFREG};
++    try {
++        TEST_ASSERT_MESSAGE(std::filesystem::exists("/test/file.txt"), "File should exist");
++
++        TEST_ASSERT_MESSAGE(std::filesystem::is_regular_file("/test/file.txt"), "Path should be a file");
++    } catch (std::exception &e) {
++        TEST_FAIL_MESSAGE(e.what());
++    }
++
++    // Test directory exists
++    test_ctx.cmp_path = "/dir";
++    test_ctx.ret_stat = (struct stat){.st_mode = S_IFDIR};
++    TEST_ASSERT_MESSAGE(std::filesystem::exists("/test/dir"), "Directory should exist");
++    TEST_ASSERT_MESSAGE(std::filesystem::is_directory("/test/dir"), "Path should be a directory");
++
++    // Test non-existent path
++    test_ctx.cmp_path = "";
++    test_ctx.ret_errno = ENOENT;
++    TEST_ASSERT_MESSAGE(!std::filesystem::exists("/test/nonexistent"), "Path should not exist");
++
++    test_vfs_teardown();
++}
+-- 
+2.43.3
+

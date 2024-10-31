@@ -1,11 +1,11 @@
-#ifndef UTIL_H
-#define UTIL_H
-#include <cstdint>
-#include <esp_mac.h>
-#include <esp_log.h>
-#include <array>
+#include "device_utils.h"
 
-inline std::array<uint8_t, 6> get_mac() {
+#include <esp_err.h>
+#include <esp_log.h>
+
+#include "esp_mac.h"
+
+std::array<uint8_t, 6> get_mac() noexcept {
     std::array<uint8_t, 6> mac{};
     esp_err_t ret = esp_read_mac(mac.data(), esp_mac_type_t::ESP_MAC_WIFI_STA);
     if (ret != ESP_OK) {
@@ -13,5 +13,3 @@ inline std::array<uint8_t, 6> get_mac() {
     }
     return mac;
 }
-
-#endif

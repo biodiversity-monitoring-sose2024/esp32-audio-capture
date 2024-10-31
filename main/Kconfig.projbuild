@@ -1,87 +1,150 @@
-menu "WIFI Config"
+menu "Custom configurations"
+    config TCP_STACK_ENABLE
+            bool "Enable tcp stack"
+            default y
+            help
+                Enables the TCP Stack
 
-    config ESP_WIFI_SSID
-        string "WiFi SSID"
-        default "myssid"
-        help
-            SSID (network name) for the example to connect to.
+    config RECORDING_ENABLE
+            bool "Enable recording"
+            default y
+            help
+                Enables the recording functionality
 
-    config ESP_WIFI_PASSWORD
-        string "WiFi Password"
-        default "mypassword"
-        help
-            WiFi password (WPA or WPA2) for the example to use.
-    
-    config ESP_HOSTNAME
-        string "Hostname"
-        default "espressif"
-        help
-            Hostname for this ESP32
+    menu "WIFI Config"
 
-    choice ESP_WIFI_SAE_MODE
-        prompt "WPA3 SAE mode selection"
-        default ESP_WPA3_SAE_PWE_BOTH
-        help
-            Select mode for SAE as Hunt and Peck, H2E or both.
-        config ESP_WPA3_SAE_PWE_HUNT_AND_PECK
-            bool "HUNT AND PECK"
-        config ESP_WPA3_SAE_PWE_HASH_TO_ELEMENT
-            bool "H2E"
-        config ESP_WPA3_SAE_PWE_BOTH
-            bool "BOTH"
-    endchoice
+        config ESP_WIFI_SSID
+            string "WiFi SSID"
+            default "myssid"
+            help
+                SSID (network name) for the example to connect to.
 
-    config ESP_WIFI_PW_ID
-        string "PASSWORD IDENTIFIER"
-        depends on  ESP_WPA3_SAE_PWE_HASH_TO_ELEMENT|| ESP_WPA3_SAE_PWE_BOTH
-        default ""
-        help
-            password identifier for SAE H2E
+        config ESP_WIFI_PASSWORD
+            string "WiFi Password"
+            default "mypassword"
+            help
+                WiFi password (WPA or WPA2) for the example to use.
 
-    config ESP_MAXIMUM_RETRY
-        int "Maximum retry"
-        default 5
-        help
-            Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
+        config ESP_HOSTNAME
+            string "Hostname"
+            default "espressif"
+            help
+                Hostname for this ESP32
 
-    choice ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD
-        prompt "WiFi Scan auth mode threshold"
-        default ESP_WIFI_AUTH_WPA2_PSK
-        help
-            The weakest authmode to accept in the scan mode.
-            This value defaults to ESP_WIFI_AUTH_WPA2_PSK incase password is present and ESP_WIFI_AUTH_OPEN is used.
-            Please select ESP_WIFI_AUTH_WEP/ESP_WIFI_AUTH_WPA_PSK incase AP is operating in WEP/WPA mode.
+        choice ESP_WIFI_SAE_MODE
+            prompt "WPA3 SAE mode selection"
+            default ESP_WPA3_SAE_PWE_BOTH
+            help
+                Select mode for SAE as Hunt and Peck, H2E or both.
+            config ESP_WPA3_SAE_PWE_HUNT_AND_PECK
+                bool "HUNT AND PECK"
+            config ESP_WPA3_SAE_PWE_HASH_TO_ELEMENT
+                bool "H2E"
+            config ESP_WPA3_SAE_PWE_BOTH
+                bool "BOTH"
+        endchoice
 
-        config ESP_WIFI_AUTH_OPEN
-            bool "OPEN"
-        config ESP_WIFI_AUTH_WEP
-            bool "WEP"
-        config ESP_WIFI_AUTH_WPA_PSK
-            bool "WPA PSK"
-        config ESP_WIFI_AUTH_WPA2_PSK
-            bool "WPA2 PSK"
-        config ESP_WIFI_AUTH_WPA_WPA2_PSK
-            bool "WPA/WPA2 PSK"
-        config ESP_WIFI_AUTH_WPA3_PSK
-            bool "WPA3 PSK"
-        config ESP_WIFI_AUTH_WPA2_WPA3_PSK
-            bool "WPA2/WPA3 PSK"
-        config ESP_WIFI_AUTH_WAPI_PSK
-            bool "WAPI PSK"
-    endchoice
+        config ESP_WIFI_PW_ID
+            string "PASSWORD IDENTIFIER"
+            depends on  ESP_WPA3_SAE_PWE_HASH_TO_ELEMENT|| ESP_WPA3_SAE_PWE_BOTH
+            default ""
+            help
+                password identifier for SAE H2E
 
-endmenu
+        config ESP_MAXIMUM_RETRY
+            int "Maximum retry"
+            default 5
+            help
+                Set the Maximum retry to avoid station reconnecting to the AP unlimited when the AP is really inexistent.
 
-menu "Server config"
-    config ESP_TCP_SERVER_IP
-        string "Target IP"
-        default ""
-        help
-            The IP of the server to connect to
+        choice ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD
+            prompt "WiFi Scan auth mode threshold"
+            default ESP_WIFI_AUTH_WPA2_PSK
+            help
+                The weakest authmode to accept in the scan mode.
+                This value defaults to ESP_WIFI_AUTH_WPA2_PSK incase password is present and ESP_WIFI_AUTH_OPEN is used.
+                Please select ESP_WIFI_AUTH_WEP/ESP_WIFI_AUTH_WPA_PSK incase AP is operating in WEP/WPA mode.
 
-    config ESP_TCP_SERVER_PORT
-        int "Target Port"
-        default ""
-        help
-            The Port of the server to connect to
+            config ESP_WIFI_AUTH_OPEN
+                bool "OPEN"
+            config ESP_WIFI_AUTH_WEP
+                bool "WEP"
+            config ESP_WIFI_AUTH_WPA_PSK
+                bool "WPA PSK"
+            config ESP_WIFI_AUTH_WPA2_PSK
+                bool "WPA2 PSK"
+            config ESP_WIFI_AUTH_WPA_WPA2_PSK
+                bool "WPA/WPA2 PSK"
+            config ESP_WIFI_AUTH_WPA3_PSK
+                bool "WPA3 PSK"
+            config ESP_WIFI_AUTH_WPA2_WPA3_PSK
+                bool "WPA2/WPA3 PSK"
+            config ESP_WIFI_AUTH_WAPI_PSK
+                bool "WAPI PSK"
+        endchoice
+
+    endmenu
+
+    menu "TCP config"
+        config TCP_STACK_SERVER_IP
+            string "Target IP"
+            help
+                The IP of the server to connect to
+
+        config TCP_STACK_SERVER_PORT
+            int "Target Port"
+            help
+                The Port of the server to connect to
+
+        config TCP_STACK_FINAL_DIR
+            string "Queue dir"
+            default "queue"
+            help
+                The directory within the sdcard which will contain the files that are enqueued to be sent
+        config TCP_STACK_DELETE
+            bool "Delete after sending"
+            default y
+            help
+                Indicates whether to delete a file after it has been successfully sent
+    endmenu
+
+    menu "Recording config"
+        config RECORDING_RECORD_DIR
+            string "Record directory"
+            default "record"
+            help
+                The directory within the sdcard to write current recordings to
+
+        config RECORDING_STORE_DIR
+            string "Store directory"
+            default "store"
+            help
+                The directory within the sdcard to store finished recordings in
+
+        config RECORDING_RECORD_SECONDS
+            int "Record length in seconds"
+            default 39
+            help
+                The length in seconds to record each file for
+
+        menu "Audio options"
+            config RECORDING_AUDIO_SAMPLE_RATE
+                int "Sample rate"
+                default 48000
+                help
+                    The sample rate for the recording
+
+            config RECORDING_AUDIO_CHANNELS
+                int "Channels"
+                default 1
+                help
+                    The channels for the recording
+
+            config RECORDING_AUDIO_BIT_DEPTH
+                int "Bit depth"
+                default 16
+                help
+                    The bit depth for the recording
+        endmenu
+    endmenu
 endmenu

@@ -94,6 +94,7 @@ stdenv.mkDerivation rec {
 
   patches = [
     ./patches/adf.patch
+    ./patches/std-filesystem.patch
   ];
 
   propagatedBuildInputs = [

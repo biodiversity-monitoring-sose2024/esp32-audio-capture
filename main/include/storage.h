@@ -16,6 +16,7 @@ class Storage {
         const std::string TAG = "storage";
         periph_sdcard_cfg_t config;
         esp_periph_handle_t handle;
+        esp_err_t setup_logging();
 };
 
 #endif

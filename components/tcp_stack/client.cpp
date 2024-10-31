@@ -6,16 +6,20 @@
 #include <esp_timer.h>
 
 #include "client.h"
-#include "time_util.h"
+
+#include <file_utils.h>
+#include <sys/dirent.h>
+
 #include "semaphore_lock.h"
 #include "socket.h"
+#include "time_util.h"
 #include "util.h"
 
 /**
  * Public api
  */
-Client::Client(std::array<uint8_t, 6>& node_id, std::string& initial_host, int& port)
-    : node_id(node_id) {
+Client::Client(client_config_t config, const std::string& initial_host, const int & port)
+    : client_config(std::move(config)) {
 
     this->server_config = server_config_t();
     this->server_config.next_data_send_timeslot = 0;
@@ -29,9 +33,12 @@ Client::Client(std::array<uint8_t, 6>& node_id, std::string& initial_host, int& 
     };
 
     esp_log_level_set(this->TAG, esp_log_level_t::ESP_LOG_DEBUG);
+
+    ensure_base_path_exists(this->client_config.file_dir);
+    ensure_base_path_exists(this->client_config.queue_dir);
 }
 
-void Client::init() {
+void Client::start() {
     auto cfg = esp_pthread_get_default_config();
     cfg.thread_name = "tcp_threads";
     cfg.stack_size = 8 * 1024;
@@ -44,27 +51,7 @@ void Client::init() {
 
     this->update_config_thread = std::jthread(&Client::update_config, this);
     this->send_thread = std::jthread(&Client::send_queue_item, this);
-}
-
-void Client::send_file(std::string& filename, data_type_t data_type, bool delete_on_success) {
-    ESP_LOGD(this->TAG, "Enqueuing %s to be sent...", filename.c_str());
-
-    auto entry = send_queue_entry_t {
-        .request = std::make_shared<data_request_t>(this->node_id, htonll(get_time()), data_type),
-        .filename = filename,
-        .on_success = [&]() {
-            if (!delete_on_success) return;
-
-            ESP_LOGD(this->TAG, "Deleting %s...", filename.c_str());
-            remove(filename.c_str());
-        }
-    };
-
-    // Push entry at the end of the queue
-    {
-        SemaphoreLock<1> lock(this->queue_semaphore);
-        this->send_queue.push_back(entry);
-    }
+    this->gather_thread = std::jthread(&Client::gather, this);
 }
 
 Client::~Client() {
@@ -78,6 +65,55 @@ Client::~Client() {
 /**
 *   Threads
 */
+
+void Client::gather(std::stop_token stop_token) {
+    using namespace std::chrono_literals;
+
+    do {
+        uint64_t curr_time = get_time();
+        if (this->server_config.next_data_send_timeslot > curr_time) {
+            auto diff = this->server_config.next_data_send_timeslot - curr_time;
+            ESP_LOGW(this->TAG, "Current time is %lld, next send slot is at %lld! Sleeping for %lld s", curr_time, this->server_config.next_data_send_timeslot, diff);
+            std::this_thread::sleep_for(std::chrono::seconds(diff));
+            continue;
+        }
+
+        for (auto& file : get_files(this->client_config.file_dir)) {
+            auto path = std::format("{0}/{1}", this->client_config.file_dir, file);
+            // If the send queue is too large, wait until we send new files
+            if (this->send_queue.size() > 20) {
+                ESP_LOGD(this->TAG, "Send queue too large, waiting...");
+                break;
+            }
+
+            ESP_LOGD(this->TAG, "Enqueuing %s to be sent...", path.c_str());
+            auto name = get_filename(path);
+            auto filename = std::format("{0}/{1}", this->client_config.queue_dir, name);
+            move_file(path, filename);
+
+            // Push entry at the end of the queue
+            {
+                auto file_creation_time = std::stoll(get_filename_no_ext(filename));
+                auto request = std::make_shared<data_request_t>(this->client_config.mac, htonll(file_creation_time), data_type_t::WAV);
+                auto entry = send_queue_entry_t{.request = request,
+                                                .filename = filename,
+                                                .on_success = [this](const send_queue_entry_t* queue_entry) {
+                                                    if (!this->client_config.delete_after_send)
+                                                        return;
+
+                                                    ESP_LOGD(this->TAG, "Deleting %s...", queue_entry->filename.c_str());
+                                                    remove(queue_entry->filename.c_str());
+                                                }};
+                SemaphoreLock<1> lock(this->queue_semaphore);
+                this->send_queue.push_back(entry);
+            }
+        }
+
+        std::this_thread::sleep_for(10s);
+    }
+    while (!stop_token.stop_requested());
+}
+
 
 void Client::send_queue_item(std::stop_token stop_token) {
     using namespace std::chrono_literals;
@@ -135,7 +171,7 @@ void Client::send_queue_item(std::stop_token stop_token) {
 
         // Send session request
         session_request_t session_request(
-            this->node_id,
+            this->client_config.mac,
             100,
             100,
             front->request->type
@@ -203,13 +239,13 @@ void Client::send_queue_item(std::stop_token stop_token) {
                 ESP_LOGW(this->TAG, "Response type %02x for request of type %02x", (unsigned int)response->type, (unsigned int)front->request->type);
                 std::this_thread::sleep_for(default_error_sleep_amount);
                 // If the error handler returns true then retry, else break and clean up
-                if (front->on_error(response->type)) {
+                if (front->on_error(front, response->type)) {
                     std::this_thread::sleep_for(default_error_sleep_amount);
                     continue;
                 }
                 else break;
             case payload_type_t::ACK:
-                front->on_success();
+                front->on_success(front);
                 break;
             default: {
                 bool is_handling_of_type_requested = std::find(
@@ -222,7 +258,7 @@ void Client::send_queue_item(std::stop_token stop_token) {
                     break;
                 }
 
-                if (front->custom_callback(response.get())) {
+                if (front->custom_callback(front, response.get())) {
                     ack_response_t ack;
                     if (!send_payload(socket.get_fd(), &ack, empty))
                         ESP_LOGE(this->TAG, "Sending %02x in response to %02x failed!", ack.type, response->type);
@@ -249,10 +285,10 @@ void Client::update_config(std::stop_token stop_token) {
 
     do {
         send_queue_entry_t entry = {
-            .request = std::make_shared<config_request_t>(this->node_id),
+            .request = std::make_shared<config_request_t>(this->client_config.mac),
             .filename = "",
             .custom_handling_payloads = { payload_type_t::RESP_CONFIG },
-            .custom_callback = [this](payload_t* response) -> bool {
+            .custom_callback = [this](const send_queue_entry_t* entry, payload_t* response) -> bool {
                 if (response->type != payload_type_t::RESP_CONFIG) {
                     ESP_LOGW(this->TAG, "Did not expect any other request type other than %02x but got %02x", payload_type_t::RESP_CONFIG, response->type);
                     return false;
@@ -307,9 +343,24 @@ void Client::update_config(std::stop_token stop_token) {
             },
         };
 
+        {
+            SemaphoreLock<1> lock(this->queue_semaphore);
+            bool already_queued = std::ranges::find_if(this->send_queue, [this](const send_queue_entry_t& item){
+                ESP_LOGD(this->TAG, "Request type %02x == %02x: %i", item.request->type, payload_type_t::REQ_CONFIG, item.request->type == payload_type_t::REQ_CONFIG);
+                return item.request->type == payload_type_t::REQ_CONFIG;
+            }) != this->send_queue.end();
+
+            if (already_queued) {
+                ESP_LOGW(this->TAG, "Config request already queued");
+                lock.release();
+                std::this_thread::sleep_for(10s);
+                continue;
+            }
+
+            this->send_queue.push_back(entry);
+        }
+
         std::this_thread::sleep_for(10s);
-        SemaphoreLock<1> lock(this->queue_semaphore);
-        this->send_queue.push_back(entry);
     } while (!stop_token.stop_requested());
 }
 
